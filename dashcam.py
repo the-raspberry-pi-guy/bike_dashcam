@@ -28,7 +28,7 @@ yuv = bytearray(320 * 240 * 3 / 2)
 pygame.init()
 pygame.mouse.set_visible(False)
 screen = pygame.display.set_mode((0,0), pygame.FULLSCREEN)
-go_button = pygame.image.load("/home/pi/bike_dashcam/media/go.bmp")
+go = pygame.image.load("/home/pi/bike_dashcam/media/go.bmp")
 
 # Startup and setup the Raspberry Pi official camera
 camera = picamera.PiCamera()
@@ -36,7 +36,24 @@ atexit.register(camera.close)
 camera.resolution = size
 camera.crop = (0.0,0.0,1.0,1.0)
 
-while True:
+class Button:
+
+	def __init__(self, rect, **kwargs):
+		self.rect = rect
+		self.icon = None
+		self.callback = None
+		for key, value in kwargs.iteritems():
+			if key == "icon": self.icon = value
+			elif key == "callback": self.callback = value
+
+buttons = [
+
+def main():
+	for event in pygame.event.get():
+		if (event.type is MOUSEBUTTONDOWN):
+			pos = pygame.mouse.get_pos()
+			for b in buttons
+
         stream = io.BytesIO()
         camera.capture(stream, use_video_port=True, format='raw')
 	stream.seek(0)
@@ -45,4 +62,10 @@ while True:
 	yuv2rgb.convert(yuv, rgb, size[0], size[1])
 	img = pygame.image.frombuffer(rgb[0:(size[0]*size[1]*3)], size, 'RGB')
 	screen.blit(img, ((width - img.get_width() ) / 2, (height - img.get_height()) / 2))
+	
+	screen.blit(go, (0,0))
+
 	pygame.display.update()
+
+while True:
+	main()
