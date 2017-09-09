@@ -9,6 +9,7 @@ import os
 import sys
 import io
 import atexit
+import time
 # Change path and import Adafruit's yuv2rgb library
 sys.path.insert(0, "/home/pi/bike_dashcam/libraries")
 import yuv2rgb
@@ -28,13 +29,20 @@ yuv = bytearray(320 * 240 * 3 / 2)
 pygame.init()
 pygame.mouse.set_visible(False)
 screen = pygame.display.set_mode((0,0), pygame.FULLSCREEN)
-go = pygame.image.load("/home/pi/bike_dashcam/media/go.bmp")
+#go = pygame.image.load("/home/pi/bike_dashcam/media/go.bmp")
 
 # Startup and setup the Raspberry Pi official camera
 camera = picamera.PiCamera()
 atexit.register(camera.close)
 camera.resolution = size
 camera.crop = (0.0,0.0,1.0,1.0)
+
+class Icon:
+	
+	def __init__(self, name):
+		self.name = name
+		try:
+			self.bitmap = pygame
 
 class Button:
 
@@ -66,17 +74,20 @@ class Button:
 		if self.icon:
 			screen.blit(self.icon.bitmap,(self.rect[0]+(self.rect[2]-self.icon.bitmap.get_width())/2, self.rect[1]+(self.rect[3]-self.icon.bitmap.get_height())/2))
 
-buttons = [Button((0,0,50,50), icon='go', callback='start_video')]
+buttons = [Button((0,0,50,50), icon='/home/pi/bike_dashcam/media/go', callback='start_video')]
 
 def start_video():
 	screen.fill((0,0,0))
+	pygame.display.update()
+	time.sleep(5)
 
 def main():
 	for event in pygame.event.get():
 		if(event.type is pygame.MOUSEBUTTONDOWN):
 			pos = pygame.mouse.get_pos()
 			for b in buttons:
-				if b.selected: break
+				if b.selected:
+					break
 
         stream = io.BytesIO()
         camera.capture(stream, use_video_port=True, format='raw')
@@ -87,9 +98,9 @@ def main():
 	img = pygame.image.frombuffer(rgb[0:(size[0]*size[1]*3)], size, 'RGB')
 	screen.blit(img, ((width - img.get_width() ) / 2, (height - img.get_height()) / 2))
 	
-	screen.blit(go, (0,0))
-
 	pygame.display.update()
 
+go = buttons[0]
+go.draw(screen)
 while True:
 	main()
