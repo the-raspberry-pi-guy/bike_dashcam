@@ -1,11 +1,11 @@
 # dashcam.py
 # A Raspberry Pi powered, GPS enabled, 3D printed bicycle dashcam
 # By Matthew Timmons-Brown, The Raspberry Pi Guy
+# Based around the Adafruit PiTFT camera project, but with heavy modification
 
 # Import necessary modules
 import pygame
 import picamera
-import errno
 import fnmatch
 import os
 import sys
@@ -27,11 +27,10 @@ size = width, height = 320, 240
 rgb = bytearray(320 * 240 * 3)
 yuv = bytearray(320 * 240 * 3 / 2)
 
-# Startup and setup Pygame, load graphics
+# Startup and setup Pygame and screen
 pygame.init()
 pygame.mouse.set_visible(False)
 screen = pygame.display.set_mode((0,0), pygame.FULLSCREEN)
-#go = pygame.image.load("/home/pi/bike_dashcam/media/go.bmp")
 
 # Startup and setup the Raspberry Pi official camera
 camera = picamera.PiCamera()
@@ -83,22 +82,25 @@ class Button:
 		else:
 			print "Icon not connected to object"
 
+##### Main body of code #####
+
+# Create and populate an icon list. This approach allows the addition of unlimited number of icons
 icons = []
 for file in os.listdir("/home/pi/bike_dashcam/media/"):
 	if fnmatch.fnmatch(file, '*.png'):
 		icons.append(Icon(file.split('.')[0]))
-		print "added"
 
-print icons
-
+# The function that is triggered when GO button is pressed, starts video recording
 def start_video_callback():
 	print "Callback triggered"
 	screen.fill((255,0,0))
 	pygame.display.update()
 	time.sleep(5)
 
+# List of buttons
 buttons = [Button((0,0,50,50), icon_name='go', callback=start_video_callback)]
 
+# Assign icons to buttons
 for b in buttons:
 	for i in icons:
 		if b.icon_name == i.name:
@@ -106,12 +108,7 @@ for b in buttons:
 			b.icon = i
 			b.icon_name = None
 
-#def start_video():
-#	print "Callback triggered"
-#	screen.fill((0,0,0))
-#	pygame.display.update()
-#	time.sleep(5)
-
+# Init GO button
 go = buttons[0]
 
 while True:
@@ -124,7 +121,9 @@ while True:
 				for b in buttons:
 					if b.selected(pos):
 						break
+		break
 
+	# Stream to display
         stream = io.BytesIO()
         camera.capture(stream, use_video_port=True, format='raw')
 	stream.seek(0)
