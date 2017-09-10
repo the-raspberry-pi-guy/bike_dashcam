@@ -1,7 +1,6 @@
 # dashcam.py
 # A Raspberry Pi powered, GPS enabled, 3D printed bicycle dashcam
 # By Matthew Timmons-Brown, The Raspberry Pi Guy
-# Based around the Adafruit PiTFT camera project, but with heavy modification
 
 # Import necessary modules
 import pygame
