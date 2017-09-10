@@ -68,6 +68,7 @@ class Button:
 		x2 = x1 + self.rect[2] - 1
 		y2 = y1 + self.rect[3] - 1
 		if ((pos[0] >= x1) and (pos[0] <= x2) and (pos[1] >= y1) and (pos[1] <= y2)):
+			print "Touch registered"
 			if self.callback:		
 				if self.value is None:
 					self.callback()
@@ -90,7 +91,13 @@ for file in os.listdir("/home/pi/bike_dashcam/media/"):
 
 print icons
 
-buttons = [Button((0,0,50,50), icon_name='go', callback='start_video')]
+def start_video_callback():
+	print "Callback triggered"
+	screen.fill((255,0,0))
+	pygame.display.update()
+	time.sleep(5)
+
+buttons = [Button((0,0,50,50), icon_name='go', callback=start_video_callback)]
 
 for b in buttons:
 	for i in icons:
@@ -99,24 +106,24 @@ for b in buttons:
 			b.icon = i
 			b.icon_name = None
 
-def start_video():
-	print "Callback triggered"
-	screen.fill((0,0,0))
-	pygame.display.update()
-	time.sleep(5)
+#def start_video():
+#	print "Callback triggered"
+#	screen.fill((0,0,0))
+#	pygame.display.update()
+#	time.sleep(5)
 
 go = buttons[0]
 
 while True:
-#	go.draw(screen)
-#	pygame.display.update()
 
-	for event in pygame.event.get():
-		if(event.type is pygame.MOUSEBUTTONDOWN):
-			pos = pygame.mouse.get_pos()
-			for b in buttons:
-				if b.selected:
-					break
+	while True:
+		for event in pygame.event.get():
+			if(event.type is pygame.MOUSEBUTTONDOWN):
+				pos = pygame.mouse.get_pos()
+				print pos
+				for b in buttons:
+					if b.selected(pos):
+						break
 
         stream = io.BytesIO()
         camera.capture(stream, use_video_port=True, format='raw')
