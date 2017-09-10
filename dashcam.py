@@ -5,6 +5,8 @@
 # Import necessary modules
 import pygame
 import picamera
+import errno
+import fnmatch
 import os
 import sys
 import io
@@ -42,17 +44,21 @@ class Icon:
 	def __init__(self, name):
 		self.name = name
 		try:
-			self.bitmap = pygame
+			self.bitmap = pygame.image.load("/home/pi/bike_dashcam/media/" + name + ".png")
+		except:
+			pass
 
 class Button:
 
 	def __init__(self, rect, **kwargs):
 		self.rect = rect
+		self.icon_name = None
 		self.icon = None
 		self.callback = None
 		self.value = None
 		for key, value in kwargs.iteritems():
 			if key == "icon": self.icon = value
+			elif key == "icon_name": self.icon_name = value
 			elif key == "callback": self.callback = value
 			elif key == "value": self.value = value
 
@@ -73,15 +79,38 @@ class Button:
 	def draw(self, screen):
 		if self.icon:
 			screen.blit(self.icon.bitmap,(self.rect[0]+(self.rect[2]-self.icon.bitmap.get_width())/2, self.rect[1]+(self.rect[3]-self.icon.bitmap.get_height())/2))
+		else:
+			print "Icon not connected to object"
 
-buttons = [Button((0,0,50,50), icon='/home/pi/bike_dashcam/media/go', callback='start_video')]
+icons = []
+for file in os.listdir("/home/pi/bike_dashcam/media/"):
+	if fnmatch.fnmatch(file, '*.png'):
+		icons.append(Icon(file.split('.')[0]))
+		print "added"
+
+print icons
+
+buttons = [Button((0,0,50,50), icon_name='go', callback='start_video')]
+
+for b in buttons:
+	for i in icons:
+		if b.icon_name == i.name:
+			print b.icon_name
+			b.icon = i
+			b.icon_name = None
 
 def start_video():
+	print "Callback triggered"
 	screen.fill((0,0,0))
 	pygame.display.update()
 	time.sleep(5)
 
-def main():
+go = buttons[0]
+
+while True:
+#	go.draw(screen)
+#	pygame.display.update()
+
 	for event in pygame.event.get():
 		if(event.type is pygame.MOUSEBUTTONDOWN):
 			pos = pygame.mouse.get_pos()
@@ -97,10 +126,11 @@ def main():
 	yuv2rgb.convert(yuv, rgb, size[0], size[1])
 	img = pygame.image.frombuffer(rgb[0:(size[0]*size[1]*3)], size, 'RGB')
 	screen.blit(img, ((width - img.get_width() ) / 2, (height - img.get_height()) / 2))
-	
+
+	go.draw(screen)	
 	pygame.display.update()
 
-go = buttons[0]
-go.draw(screen)
-while True:
-	main()
+#go = buttons[0]
+#print go
+#go.draw(screen)
+
