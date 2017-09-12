@@ -38,6 +38,7 @@ camera.resolution = size
 camera.crop = (0.0,0.0,1.0,1.0)
 
 class Icon:
+	"""A simple icon bitmap class that connects a name to a pygame image""" 
 	
 	def __init__(self, name):
 		self.name = name
@@ -47,19 +48,23 @@ class Icon:
 			pass
 
 class Button:
-
+	"""A button class to control all aspects of touchscreen buttons"""
 	def __init__(self, rect, **kwargs):
 		self.rect = rect
 		self.icon_name = None
 		self.icon = None
 		self.callback = None
 		self.value = None
+		# All of the properties a button can have
+		# Name, linked icon file, its own callback function etc
 		for key, value in kwargs.iteritems():
 			if key == "icon": self.icon = value
 			elif key == "icon_name": self.icon_name = value
 			elif key == "callback": self.callback = value
 			elif key == "value": self.value = value
 
+	# Function to check whether or not a button has been pressed
+	# If pressed, trigger that button's callback function, if it has one
 	def selected(self, pos):
 		x1 = self.rect[0]
 		y1 = self.rect[1]
@@ -75,6 +80,7 @@ class Button:
 			return True
 		return False
 
+	# Function to draw a button onto the screen
 	def draw(self, screen):
 		if self.icon:
 			screen.blit(self.icon.bitmap,(self.rect[0]+(self.rect[2]-self.icon.bitmap.get_width())/2, self.rect[1]+(self.rect[3]-self.icon.bitmap.get_height())/2))
@@ -134,8 +140,3 @@ while True:
 
 	go.draw(screen)	
 	pygame.display.update()
-
-#go = buttons[0]
-#print go
-#go.draw(screen)
-
