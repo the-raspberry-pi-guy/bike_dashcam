@@ -11,6 +11,7 @@ import sys
 import io
 import atexit
 import time
+import threading
 # Change path and import Adafruit's yuv2rgb library
 sys.path.insert(0, "/home/pi/bike_dashcam/libraries")
 import yuv2rgb
@@ -101,6 +102,23 @@ def start_video_callback():
 	screen.fill((255,0,0))
 	pygame.display.update()
 	time.sleep(5)
+
+class VideoThread(threading.Thread):
+
+	def __init__(self, output, resolution):
+		threading.Thread.__init__(self)
+		self.output = output
+		self.resolution = resolution
+
+	def run(self):
+		print "Starting video"
+		self.start()
+
+	def start(self):
+		camera.start_recording(self.output, resize=self.resolution)
+
+	def stop(self):
+		camera.stop_recording()
 
 # List of buttons
 buttons = [Button((0,0,50,50), icon_name='go', callback=start_video_callback)]
