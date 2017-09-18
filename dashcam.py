@@ -97,28 +97,35 @@ for file in os.listdir("/home/pi/bike_dashcam/media/"):
 		icons.append(Icon(file.split('.')[0]))
 
 # The function that is triggered when GO button is pressed, starts video recording
+#def start_video_callback():
+#	print "Callback triggered"
+#	screen.fill((255,0,0))
+#	pygame.display.update()
+#	time.sleep(5)
+
+class VideoThread(threading.Thread):
+
+	def __init__(self, output): #resolution):
+		threading.Thread.__init__(self)
+		self.output = output
+	#	self.resolution = resolution
+
+	def run(self):
+		print "Starting video"
+		self.start_vid()
+
+	def start_vid(self):
+		camera.start_recording(self.output)#, resize=self.resolution)
+
+	def stop_vid(self):
+		camera.stop_recording()
+
 def start_video_callback():
 	print "Callback triggered"
 	screen.fill((255,0,0))
 	pygame.display.update()
-	time.sleep(5)
-
-class VideoThread(threading.Thread):
-
-	def __init__(self, output, resolution):
-		threading.Thread.__init__(self)
-		self.output = output
-		self.resolution = resolution
-
-	def run(self):
-		print "Starting video"
-		self.start()
-
-	def start(self):
-		camera.start_recording(self.output, resize=self.resolution)
-
-	def stop(self):
-		camera.stop_recording()
+	new_video_thread = VideoThread("/home/pi/bike_dashcam/videos/video.h264")
+	new_video_thread.start()
 
 # List of buttons
 buttons = [Button((0,0,50,50), icon_name='go', callback=start_video_callback)]
