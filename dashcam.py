@@ -33,6 +33,9 @@ pygame.init()
 pygame.mouse.set_visible(False)
 screen = pygame.display.set_mode((0,0), pygame.FULLSCREEN)
 
+# Route to folder for videos
+route = "/home/pi/bike_dashcam/videos"
+
 class Icon:
 	"""A simple icon bitmap class that connects a name to a pygame image"""
 	
@@ -52,7 +55,7 @@ class Button:
 		self.icon = None
 		self.callback = None
 		self.value = None
-		# All of the properties a button can have
+		# All of the properties a button can have:
 		# Name, linked icon file, its own callback function etc
 		for key, value in kwargs.iteritems():
 			if key == "icon": self.icon = value
@@ -63,6 +66,7 @@ class Button:
 	# Function to check whether or not a button has been pressed
 	# If pressed, trigger that button's callback function, if it has one
 	def selected(self, pos):
+		# If position of touch was within button rectangle, trigger callback
 		x1 = self.rect[0]
 		y1 = self.rect[1]
 		x2 = x1 + self.rect[2] - 1
@@ -84,8 +88,6 @@ class Button:
 		else:
 			print "Icon not connected to object"
 
-##### Main body of code #####
-
 # Create and populate an icon list. This approach allows the addition of unlimited number of icons
 icons = []
 for file in os.listdir("/home/pi/bike_dashcam/media/"):
@@ -93,6 +95,7 @@ for file in os.listdir("/home/pi/bike_dashcam/media/"):
 		icons.append(Icon(file.split('.')[0]))
 
 class VideoThread(threading.Thread):
+	"""A threading class to control video recording whilst maintaining touch capabilities"""	
 
 	def __init__(self, path):
 		threading.Thread.__init__(self)
@@ -102,9 +105,11 @@ class VideoThread(threading.Thread):
 	def run(self):
 		print "Thread enabled"
 		global busy
+		# While no touch interrupts are recorded, filn
 		while tinterrupt == False:
 			self.recording()
 		print "Interrupt detected, returning to live stream"
+		# Change global busy value, as no longer busy
 		busy = False
 
 	def recording(self):
@@ -116,7 +121,7 @@ class VideoThread(threading.Thread):
 		video_path = (self.path + "%s.h264" % self.vid_count)
 		self.vid_count += 1		
 
-		# For my video filming - this records and stores EVERY clip -  will fill up your whole storage medium!
+		# For filming puposes - this records and stores EVERY clip -  will fill up your whole storage medium!
 #		while os.path.exists(video_path):
 #			self.vid_count += 1
 #			video_path = (self.path + "%s.h264" % self.vid_count)
@@ -126,19 +131,27 @@ class VideoThread(threading.Thread):
 		subprocess.call(["raspivid", "-o", video_path, "-t", "30000"])
 		print "Ending clip"
 
+# Video callback function
+# When go button is pressed, this executes. Starts a thread that records 30 second videos
 def start_video_callback():
-	print "Callback triggered"
+	print "Video callback triggered"
 	camera.close()
 	print "Camera closed"
 	global busy
 	busy = True
 	screen.fill((0,0,0))
 	pygame.display.update()
-	new_video_thread = VideoThread("/home/pi/bike_dashcam/videos/dash")
+	new_video_thread = VideoThread(route + "/dash")
 	new_video_thread.start()
 
+# Shutdown callback function
+# When shutdown button is pressed, this executes. Shuts down the Pi safely
+def shutdown_callback():
+	print "Shutdown callback triggered"
+	subprocess.call(["sudo", "shutdown", "now"])
+
 # List of buttons
-buttons = [Button((0,0,50,50), icon_name='go', callback=start_video_callback)]
+buttons = [Button((0,0,50,50), icon_name='go', callback=start_video_callback), Button((270,0,50,50), icon_name='shutdown', callback=shutdown_callback)]
 
 # Assign icons to buttons
 for b in buttons:
@@ -148,9 +161,12 @@ for b in buttons:
 			b.icon = i
 			b.icon_name = None
 
-# Init GO button
+# Init go/shutdown buttons
 go = buttons[0]
+shutdown = buttons[1]
 
+# Live streaming function
+# When the device is not busy recording, this streams the camera output to the PiTFT
 def stream_to_screen():
 	stream = io.BytesIO()
         camera.capture(stream, use_video_port=True, format='raw')
@@ -161,42 +177,54 @@ def stream_to_screen():
 	img = pygame.image.frombuffer(rgb[0:(size[0]*size[1]*3)], size, 'RGB')
 	screen.blit(img, ((width - img.get_width() ) / 2, (height - img.get_height()) / 2))
 
-	go.draw(screen)	
+	# Overlay and draw the buttons, then update the display
+	go.draw(screen)
+	shutdown.draw(screen)	
 	pygame.display.update()
 
+# Set up global and local variables
 global busy
 busy = False
-
 global tinterrupt
 tinterrupt = False
 
 old_busy = True
 
-while True:
-
+### Main body of code ###
+def main():
 	while True:
-		for event in pygame.event.get():
-			if(event.type is pygame.MOUSEBUTTONDOWN):
-				if busy == True:
-					tinterrupt = True
-				else:
-					pos = pygame.mouse.get_pos()
-					print pos
-					for b in buttons:
-						if b.selected(pos):
-							break
-		break
+	
+		while True:
+			# For every touch press, execute button callback or interrupt recording
+			for event in pygame.event.get():
+				if(event.type is pygame.MOUSEBUTTONDOWN):
+					if busy == True:
+						tinterrupt = True
+					else:
+						pos = pygame.mouse.get_pos()
+						print pos
+						for b in buttons:
+							if b.selected(pos):
+								break
+			break
+	
+		# If a recording has just stopped, re-enable the camera in Python
+		# PiCamera cannot be used at the same time as recording
+		# Throws up some nasty errors - GPU related?
+		if (busy == False) and (old_busy == True):
+			print "Camera enabled"
+			camera = picamera.PiCamera()
+			atexit.register(camera.close)
+			camera.resolution = size
+			camera.crop = (0.0,0.0,1.0,1.0)
+	
+		old_busy = busy
 
-	if (busy == False) and (old_busy == True):
-		print "Camera enabled"
-		camera = picamera.PiCamera()
-		atexit.register(camera.close)
-		camera.resolution = size
-		camera.crop = (0.0,0.0,1.0,1.0)
+		# Stream to display whilst not recording
+		while not busy:
+			stream_to_screen()
+			break
 
-	old_busy = busy
-
-	# Stream to display
-	while not busy:
-		stream_to_screen()
-		break
+# Execute.
+if __name__ == "__main__":
+	main()
