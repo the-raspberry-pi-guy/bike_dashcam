@@ -111,7 +111,7 @@ class VideoThread(threading.Thread):
 		print "Starting clip"
 		
 		# Looping recording - will overwrite old video files
-		if self.vid_count >= 100: # More than 15 minutes of recording time, about 4GB max.
+		if self.vid_count >= 65: # More than 30 minutes of recording time, theoretically 4GB 
 			self.vid_count = 0
 		video_path = (self.path + "%s.h264" % self.vid_count)
 		self.vid_count += 1		
@@ -122,7 +122,8 @@ class VideoThread(threading.Thread):
 #			video_path = (self.path + "%s.h264" % self.vid_count)
 #			print video_path
 
-		subprocess.call(["raspivid", "-o", video_path, "-t", "10000"])
+		# Record in 30 second videos
+		subprocess.call(["raspivid", "-o", video_path, "-t", "30000"])
 		print "Ending clip"
 
 def start_video_callback():
