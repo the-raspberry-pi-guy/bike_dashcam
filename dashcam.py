@@ -187,13 +187,14 @@ global busy
 busy = False
 global tinterrupt
 tinterrupt = False
-
+global old_busy
 old_busy = True
 
 ### Main body of code ###
 def main():
 	while True:
-	
+		global old_busy
+
 		while True:
 			# For every touch press, execute button callback or interrupt recording
 			for event in pygame.event.get():
@@ -213,6 +214,7 @@ def main():
 		# Throws up some nasty errors - GPU related?
 		if (busy == False) and (old_busy == True):
 			print "Camera enabled"
+			global camera
 			camera = picamera.PiCamera()
 			atexit.register(camera.close)
 			camera.resolution = size
