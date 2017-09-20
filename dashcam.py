@@ -33,12 +33,6 @@ pygame.init()
 pygame.mouse.set_visible(False)
 screen = pygame.display.set_mode((0,0), pygame.FULLSCREEN)
 
-# Startup and setup the Raspberry Pi official camera
-#camera = picamera.PiCamera()
-#atexit.register(camera.close)
-#camera.resolution = size
-#camera.crop = (0.0,0.0,1.0,1.0)
-
 class Icon:
 	"""A simple icon bitmap class that connects a name to a pygame image"""
 	
@@ -51,6 +45,7 @@ class Icon:
 
 class Button:
 	"""A button class to control all aspects of touchscreen buttons"""
+	
 	def __init__(self, rect, **kwargs):
 		self.rect = rect
 		self.icon_name = None
@@ -99,20 +94,30 @@ for file in os.listdir("/home/pi/bike_dashcam/media/"):
 
 class VideoThread(threading.Thread):
 
-	def __init__(self, output): #resolution):
+	def __init__(self, path):
 		threading.Thread.__init__(self)
-		self.output = output
-	#	self.resolution = resolution
+		self.path = path
+		self.vid_count = 0
 
 	def run(self):
-		print "Starting video"
-		self.start_vid()
-
-	def start_vid(self):
-		#camera.start_recording(self.output)#, resize=self.resolution)
-		subprocess.call(["raspivid", "-o", self.output, "-t", "10000"])
+		print "Thread enabled"
 		global busy
+		while tinterrupt == False:
+			self.recording()
+		print "Interrupt detected, returning to live stream"
 		busy = False
+
+	def recording(self):
+		print "Starting clip"
+
+		video_path = (self.path + "%s.h264" % self.vid_count)
+		while os.path.exists(video_path):
+			self.vid_count += 1
+			video_path = (self.path + "%s.h264" % self.vid_count)
+			print video_path
+
+		subprocess.call(["raspivid", "-o", video_path, "-t", "10000"])
+		print "Ending clip"
 
 def start_video_callback():
 	print "Callback triggered"
@@ -120,9 +125,9 @@ def start_video_callback():
 	print "Camera closed"
 	global busy
 	busy = True
-	screen.fill((255,0,0))
+	screen.fill((0,0,0))
 	pygame.display.update()
-	new_video_thread = VideoThread("/home/pi/bike_dashcam/videos/video.h264")
+	new_video_thread = VideoThread("/home/pi/bike_dashcam/videos/dash")
 	new_video_thread.start()
 
 # List of buttons
@@ -154,6 +159,10 @@ def stream_to_screen():
 
 global busy
 busy = False
+
+global tinterrupt
+tinterrupt = False
+
 old_busy = True
 
 while True:
@@ -161,11 +170,14 @@ while True:
 	while True:
 		for event in pygame.event.get():
 			if(event.type is pygame.MOUSEBUTTONDOWN):
-				pos = pygame.mouse.get_pos()
-				print pos
-				for b in buttons:
-					if b.selected(pos):
-						break
+				if busy == True:
+					tinterrupt = True
+				else:
+					pos = pygame.mouse.get_pos()
+					print pos
+					for b in buttons:
+						if b.selected(pos):
+							break
 		break
 
 	if (busy == False) and (old_busy == True):
@@ -176,19 +188,8 @@ while True:
 		camera.crop = (0.0,0.0,1.0,1.0)
 
 	old_busy = busy
+
 	# Stream to display
 	while not busy:
 		stream_to_screen()
 		break
-
-#       stream = io.BytesIO()
-#	camera.capture(stream, use_video_port=True, format='raw')
-#	stream.seek(0)
-#	stream.readinto(yuv)
-#	stream.close()
-#	yuv2rgb.convert(yuv, rgb, size[0], size[1])
-#	img = pygame.image.frombuffer(rgb[0:(size[0]*size[1]*3)], size, 'RGB')
-#	screen.blit(img, ((width - img.get_width() ) / 2, (height - img.get_height()) / 2))
-#
-#	go.draw(screen)	
-#	pygame.display.update()
