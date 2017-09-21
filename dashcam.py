@@ -13,6 +13,7 @@ import atexit
 import time
 import threading
 import subprocess
+import gps
 # Change path and import Adafruit's yuv2rgb library
 sys.path.insert(0, "/home/pi/bike_dashcam/libraries")
 import yuv2rgb
@@ -35,6 +36,15 @@ screen = pygame.display.set_mode((0,0), pygame.FULLSCREEN)
 
 # Route to folder for videos
 route = "/home/pi/bike_dashcam/videos"
+
+# Serial port route
+#serialPort = serial.Serial("/dev/serial0", 9600, timeout=0.01)
+
+# Setup GPS
+subprocess.call(["sudo", "killall", "gpsd"])
+subprocess.call(["sudo", "gpsd", "/dev/ttyS0", "-F", "/var/run/gpsd.sock"])
+session = gps.gps("localhost", "2947")
+session.stream(gps.WATCH_ENABLE | gps.WATCH_NEWSTYLE)
 
 class Icon:
 	"""A simple icon bitmap class that connects a name to a pygame image"""
@@ -115,8 +125,10 @@ class VideoThread(threading.Thread):
 	def recording(self):
 		print "Starting clip"
 		
+		gps = get_gps()
+
 		# Looping recording - will overwrite old video files
-		if self.vid_count >= 65: # More than 30 minutes of recording time, theoretically 4GB 
+		if self.vid_count >= 135: # More than 30 minutes of recording time, theoretically 4GB 
 			self.vid_count = 0
 		video_path = (self.path + "%s.h264" % self.vid_count)
 		self.vid_count += 1		
@@ -127,18 +139,18 @@ class VideoThread(threading.Thread):
 #			video_path = (self.path + "%s.h264" % self.vid_count)
 #			print video_path
 
-		# Record in 30 second videos
-		subprocess.call(["raspivid", "-o", video_path, "-t", "30000"])
+		# Record in 15 second videos
+		subprocess.call(["raspivid", "-o", video_path, "-t", "15000"])
 		print "Ending clip"
 
 # Video callback function
 # When go button is pressed, this executes. Starts a thread that records 30 second videos
 def start_video_callback():
+	global busy
+	busy = True
 	print "Video callback triggered"
 	camera.close()
 	print "Camera closed"
-	global busy
-	busy = True
 	screen.fill((0,0,0))
 	pygame.display.update()
 	new_video_thread = VideoThread(route + "/dash")
@@ -182,13 +194,31 @@ def stream_to_screen():
 	shutdown.draw(screen)	
 	pygame.display.update()
 
+def get_gps():
+#	report = session.next()
+	done = False
+	while not done:
+		print "Going around"
+		report = session.next()
+		if report['class'] == 'TPV':
+			if hasattr(report, 'lat') and hasattr(report, 'lon'):
+				output = (report.lat, report.lon)
+			else:
+				output = "No GPS"
+			print output
+			done = True
+			return output
+		else:
+			pass
+
 # Set up global and local variables
 global busy
 busy = False
 global tinterrupt
 tinterrupt = False
-global old_busy
+
 old_busy = True
+camera_is_definitely_on = False
 
 ### Main body of code ###
 
@@ -217,10 +247,11 @@ while True:
 		atexit.register(camera.close)
 		camera.resolution = size
 		camera.crop = (0.0,0.0,1.0,1.0)
+		camera_is_definitely_on = True
 
 	old_busy = busy
 
 	# Stream to display
-	while not busy:
+	while not busy and camera_is_definitely_on:
 		stream_to_screen()
 		break
