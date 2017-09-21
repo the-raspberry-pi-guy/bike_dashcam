@@ -138,7 +138,7 @@ class VideoThread(threading.Thread):
 
 		# Record in 15 second videos
 
-		subprocess.call(["raspivid", "-o", video_path, "-t", "15000", "-a", str(gps)])
+		subprocess.call(["raspivid", "-o", video_path, "-t", "15000", "-ae", "60,0xff,0x808000", "-a", str(gps)])
 		print "Ending clip"
 
 # Video callback function
@@ -240,7 +240,7 @@ while True:
 		break
 
 	# If a recording has just stopped, re-enable the camera in Python
-	#  PiCamera cannot be used at the same time as recording
+	# PiCamera cannot be used at the same time as recording
 	# Throws up some nasty errors - GPU related?
 	if (busy == False) and (old_busy == True):
 		print "Camera enabled"
