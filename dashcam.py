@@ -14,6 +14,7 @@ import time
 import threading
 import subprocess
 import gps
+ 
 # Change path and import Adafruit's yuv2rgb library
 sys.path.insert(0, "/home/pi/bike_dashcam/libraries")
 import yuv2rgb
@@ -36,9 +37,6 @@ screen = pygame.display.set_mode((0,0), pygame.FULLSCREEN)
 
 # Route to folder for videos
 route = "/home/pi/bike_dashcam/videos"
-
-# Serial port route
-#serialPort = serial.Serial("/dev/serial0", 9600, timeout=0.01)
 
 # Setup GPS
 subprocess.call(["sudo", "killall", "gpsd"])
@@ -115,7 +113,6 @@ class VideoThread(threading.Thread):
 	def run(self):
 		print "Thread enabled"
 		global busy
-		# While no touch interrupts are recorded, filn
 		while tinterrupt == False:
 			self.recording()
 		print "Interrupt detected, returning to live stream"
@@ -140,7 +137,8 @@ class VideoThread(threading.Thread):
 #			print video_path
 
 		# Record in 15 second videos
-		subprocess.call(["raspivid", "-o", video_path, "-t", "15000"])
+
+		subprocess.call(["raspivid", "-o", video_path, "-t", "15000", "-a", str(gps)])
 		print "Ending clip"
 
 # Video callback function
@@ -148,6 +146,8 @@ class VideoThread(threading.Thread):
 def start_video_callback():
 	global busy
 	busy = True
+	global camera_is_definitely_on
+	camera_is_definitely_on = False
 	print "Video callback triggered"
 	camera.close()
 	print "Camera closed"
@@ -161,7 +161,7 @@ def start_video_callback():
 def shutdown_callback():
 	print "Shutdown callback triggered"
 	subprocess.call(["sudo", "shutdown", "now"])
-
+		
 # List of buttons
 buttons = [Button((0,0,50,50), icon_name='go', callback=start_video_callback), Button((270,0,50,50), icon_name='shutdown', callback=shutdown_callback)]
 
@@ -195,7 +195,6 @@ def stream_to_screen():
 	pygame.display.update()
 
 def get_gps():
-#	report = session.next()
 	done = False
 	while not done:
 		print "Going around"
@@ -218,6 +217,8 @@ global tinterrupt
 tinterrupt = False
 
 old_busy = True
+
+global camera_is_definitely_on
 camera_is_definitely_on = False
 
 ### Main body of code ###
