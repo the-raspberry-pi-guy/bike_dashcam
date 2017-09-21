@@ -191,42 +191,36 @@ global old_busy
 old_busy = True
 
 ### Main body of code ###
-def main():
+
+while True:
+ 
 	while True:
-		global old_busy
+		# For every touch press, execute button callback or interrupt recording
+		for event in pygame.event.get():
+			if(event.type is pygame.MOUSEBUTTONDOWN):
+				if busy == True:
+					tinterrupt = True
+				else:
+					pos = pygame.mouse.get_pos()
+					print pos
+					for b in buttons:
+						if b.selected(pos):
+							break
+		break
 
-		while True:
-			# For every touch press, execute button callback or interrupt recording
-			for event in pygame.event.get():
-				if(event.type is pygame.MOUSEBUTTONDOWN):
-					if busy == True:
-						tinterrupt = True
-					else:
-						pos = pygame.mouse.get_pos()
-						print pos
-						for b in buttons:
-							if b.selected(pos):
-								break
-			break
-	
-		# If a recording has just stopped, re-enable the camera in Python
-		# PiCamera cannot be used at the same time as recording
-		# Throws up some nasty errors - GPU related?
-		if (busy == False) and (old_busy == True):
-			print "Camera enabled"
-			global camera
-			camera = picamera.PiCamera()
-			atexit.register(camera.close)
-			camera.resolution = size
-			camera.crop = (0.0,0.0,1.0,1.0)
-	
-		old_busy = busy
+	# If a recording has just stopped, re-enable the camera in Python
+	#  PiCamera cannot be used at the same time as recording
+	# Throws up some nasty errors - GPU related?
+	if (busy == False) and (old_busy == True):
+		print "Camera enabled"
+		camera = picamera.PiCamera()
+		atexit.register(camera.close)
+		camera.resolution = size
+		camera.crop = (0.0,0.0,1.0,1.0)
 
-		# Stream to display whilst not recording
-		while not busy:
-			stream_to_screen()
-			break
+	old_busy = busy
 
-# Execute.
-if __name__ == "__main__":
-	main()
+	# Stream to display
+	while not busy:
+		stream_to_screen()
+		break
