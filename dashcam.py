@@ -14,6 +14,7 @@ import time
 import threading
 import subprocess
 import gps
+import RPi.GPIO as GPIO
  
 # Change path and import Adafruit's yuv2rgb library
 sys.path.insert(0, "/home/pi/bike_dashcam/libraries")
@@ -36,7 +37,14 @@ pygame.mouse.set_visible(False)
 screen = pygame.display.set_mode((0,0), pygame.FULLSCREEN)
 
 # Route to folder for videos
-route = "/home/pi/bike_dashcam/videos"
+# route = "/home/pi/bike_dashcam/videos"
+# Set route and mount USB stick
+route = "/media/usb"
+subprocess.call(["sudo", "mount", "-t", "vfat", "/dev/sda1", "/media/usb"])
+
+# Setup GPIO pin for low battery detection
+GPIO.setmode(GPIO.BCM)
+GPIO.setup(21, GPIO.IN)
 
 # Setup GPS
 subprocess.call(["sudo", "killall", "gpsd"])
@@ -80,7 +88,6 @@ class Button:
 		x2 = x1 + self.rect[2] - 1
 		y2 = y1 + self.rect[3] - 1
 		if ((pos[0] >= x1) and (pos[0] <= x2) and (pos[1] >= y1) and (pos[1] <= y2)):
-			print "Touch registered"
 			if self.callback:		
 				if self.value is None:
 					self.callback()
@@ -94,7 +101,7 @@ class Button:
 		if self.icon:
 			screen.blit(self.icon.bitmap,(self.rect[0]+(self.rect[2]-self.icon.bitmap.get_width())/2, self.rect[1]+(self.rect[3]-self.icon.bitmap.get_height())/2))
 		else:
-			print "Icon not connected to object"
+			pass
 
 # Create and populate an icon list. This approach allows the addition of unlimited number of icons
 icons = []
@@ -111,17 +118,13 @@ class VideoThread(threading.Thread):
 		self.vid_count = 0
 
 	def run(self):
-		print "Thread enabled"
 		global busy
 		while tinterrupt == False:
 			self.recording()
-		print "Interrupt detected, returning to live stream"
 		# Change global busy value, as no longer busy
 		busy = False
 
 	def recording(self):
-		print "Starting clip"
-		
 		gps = get_gps()
 
 		# Looping recording - will overwrite old video files
@@ -139,7 +142,6 @@ class VideoThread(threading.Thread):
 		# Record in 15 second videos
 
 		subprocess.call(["raspivid", "-o", video_path, "-t", "15000", "-ae", "60,0xff,0x808000", "-a", str(gps)])
-		print "Ending clip"
 
 # Video callback function
 # When go button is pressed, this executes. Starts a thread that records 30 second videos
@@ -148,9 +150,7 @@ def start_video_callback():
 	busy = True
 	global camera_is_definitely_on
 	camera_is_definitely_on = False
-	print "Video callback triggered"
 	camera.close()
-	print "Camera closed"
 	screen.fill((0,0,0))
 	pygame.display.update()
 	new_video_thread = VideoThread(route + "/dash")
@@ -159,7 +159,6 @@ def start_video_callback():
 # Shutdown callback function
 # When shutdown button is pressed, this executes. Shuts down the Pi safely
 def shutdown_callback():
-	print "Shutdown callback triggered"
 	subprocess.call(["sudo", "shutdown", "now"])
 		
 # List of buttons
@@ -169,7 +168,6 @@ buttons = [Button((0,0,50,50), icon_name='go', callback=start_video_callback), B
 for b in buttons:
 	for i in icons:
 		if b.icon_name == i.name:
-			print b.icon_name
 			b.icon = i
 			b.icon_name = None
 
@@ -194,22 +192,20 @@ def stream_to_screen():
 	shutdown.draw(screen)	
 	pygame.display.update()
 
+# GPS function
+# Retrieves current GPS coordinates
+# Have found the GPS boards to be quite temperamental and take a few goes to get going
 def get_gps():
-	done = False
-	while not done:
-		print "Going around"
-		report = session.next()
-		if report['class'] == 'TPV':
-			if hasattr(report, 'lat') and hasattr(report, 'lon'):
-				output = (report.lat, report.lon)
-			else:
-				output = "No GPS"
-			print output
-			done = True
-			return output
+	report = session.next()
+	if report['class'] == 'TPV':
+		if hasattr(report, 'lat') and hasattr(report, 'lon'):
+			output = (report.lat, report.lon)
 		else:
-			pass
-
+			output = "No GPS"
+	else:
+		output = "No GPS"
+	return output
+	
 # Set up global and local variables
 global busy
 busy = False
@@ -243,7 +239,6 @@ while True:
 	# PiCamera cannot be used at the same time as recording
 	# Throws up some nasty errors - GPU related?
 	if (busy == False) and (old_busy == True):
-		print "Camera enabled"
 		camera = picamera.PiCamera()
 		atexit.register(camera.close)
 		camera.resolution = size
@@ -251,6 +246,14 @@ while True:
 		camera_is_definitely_on = True
 
 	old_busy = busy
+
+	# Low battery detection on pin 21
+	# Pin drops to 0 if low battery detected
+	low_battery = GPIO.input(21)
+	if low_battery == 0:
+		screen.fill((255,0,0))
+		pygame.display.update()
+		shutdown_callback()
 
 	# Stream to display
 	while not busy and camera_is_definitely_on:
